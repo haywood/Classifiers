@@ -52,18 +52,24 @@ def classify(samples, sample_labels, per_class, classifier_type):
 if __name__ == '__main__':
 
     train_file = sys.argv[1];
-    feature_file = sys.argv[2];
-    per_class = int(sys.argv[3]);
+    feature_file_bayes = sys.argv[2];
+    feature_file_nn = sys.argv[3];
+    per_class = int(sys.argv[4]);
 
     sample_labels, samples = read_hands(train_file);
 
-    with open(feature_file) as data:
+    with open(feature_file_bayes) as data:
         data.readline();
         indices = [int(i)-1 for i in data.readline().split()];
-    print('Using features:', indices);
+    print('Bayesian features:', indices);
 
     print(classify([sample[indices] for sample in samples],
         sample_labels, per_class, bayes_classifier));
+
+    with open(feature_file_nn) as data:
+        data.readline();
+        indices = [int(i)-1 for i in data.readline().split()];
+    print('Nearest Neighbor features:', indices);
 
     print(classify([sample[indices] for sample in samples],
         sample_labels, per_class, nn_classifier));

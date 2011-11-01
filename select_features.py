@@ -75,7 +75,7 @@ def genetic_beam(samples, sample_labels, per_class, classifier):
 def stochastic_genetic_beam(samples, sample_labels, per_class, classifier):
     
     n_features = shape(samples)[1];
-    beam_width = 3*n_features;
+    beam_width = n_features;
 
     features = tuple(range(n_features));
     native_seed(time.time());
@@ -144,9 +144,9 @@ def stochastic_reductive_beam(samples, sample_labels, per_class, classifier):
 
     n_features = shape(samples)[1];
     features = tuple(range(n_features));
-    best = [(-inf, features)];
+    best = (-inf, features),;
     frontier = best[:];
-    beam_width = 3*n_features;
+    beam_width = n_features;
 
     native_seed(time.time());
 
