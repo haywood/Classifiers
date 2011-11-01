@@ -1,27 +1,7 @@
 function classifier(trainin, testin, trainout, testout)
     
-    train_file = fopen(trainin, 'r');
-    C = textscan(train_file, '%s %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f');
-    fclose(train_file);
-
-    feature_file = fopen('best_hand_features_nn.txt', 'r');
-    expected_acc = fscanf(feature_file, '%f', 1)
-    features = fscanf(feature_file, '%d')'
-    fclose(feature_file);
-
-    samples = cell2mat(C(2:end));
-    sample_labels = C{1};
+    [sample_labels, samples] = read_hands(trainin);
     n_samples = size(samples, 1);
-
-    X = zeros(n_samples, size(samples, 2)/2- 1);
-    for i = 1:size(samples, 1);
-        x = [];
-        for j = 1:2:size(samples, 2)-3
-            x(end+1) = norm(samples(i, j:j+1) - samples(i, j+2:j+3));
-        end
-        X(i, :) = x;
-    end
-    samples = X(:, features);
 
     per_class = 5;
     per_train_class = floor(per_class/2);
@@ -45,11 +25,57 @@ function classifier(trainin, testin, trainout, testout)
     judge = judge.train(train_labels, train_samples);
     correct = 0;
 
+    out_file = fopen(trainout, 'w');
     for i = 1:size(test_samples, 1)
         prediction = judge.predict(test_samples(i, :));
         if strcmp(prediction, test_labels{i})
             correct = correct + 1;
         end
+        fprintf(out_file, '%s', prediction);
+        fprintf(out_file, ' %f', test_samples(i, :));
+        fprintf(out_file, '\n');
     end
+    fclose(out_file);
 
     correct/size(test_samples, 1)
+
+    [test_labels, test_samples] = read_hands(testin);
+    out_file = fopen(testout, 'w');
+    for i = 1:size(test_samples, 1)
+        prediction = judge.predict(test_samples(i, :));
+        fprintf(out_file, '%s', prediction);
+        fprintf(out_file, ' %f', test_samples(i, :));
+        fprintf(out_file, '\n');
+    end
+    fclose(out_file);
+
+
+function [labels, data] = read_hands(hand_file)
+
+    data_file = fopen(hand_file, 'r');
+    C = textscan(data_file, '%s %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f');
+    fclose(data_file);
+
+    data = cell2mat(C(2:end));
+    labels = C{1};
+
+    data = transform_hands(data);
+
+function image = transform_hands(preimage)
+
+    image = zeros(size(preimage, 1), size(preimage, 2)/2 - 1);
+
+    for i = 1:size(preimage, 1);
+        x = [];
+        for j = 1:2:size(preimage, 2)-3
+            x(end+1) = norm(preimage(i, j:j+1) - preimage(i, j+2:j+3));
+        end
+        image(i, :) = x;
+    end
+
+    feature_file = fopen('best_hand_features_nn.txt', 'r');
+    expected_acc = fscanf(feature_file, '%f', 1);
+    features = fscanf(feature_file, '%d')';
+    fclose(feature_file);
+
+    image = image(:, features);
