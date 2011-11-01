@@ -15,7 +15,7 @@ from nn_classifier import nn_classifier
 from myio import *
 
 
-def exhaustive(samples, sample_labels, per_class, classifier):
+def exhaustive(samples, sample_labels, per_class, classifier, alg_args):
     n_features = shape(samples)[1];
     features = tuple(range(n_features));
     ultimate = (-inf, features),;
@@ -35,183 +35,115 @@ def exhaustive(samples, sample_labels, per_class, classifier):
 
     return ultimate;
 
-def genetic_beam(samples, sample_labels, per_class, classifier):
+def beam_search(samples, sample_labels, per_class, classifier, alg_args):
+    initializer, successor_function, selector = alg_args;
     n_features = shape(samples)[1];
-    ultimate = (-inf, ()),;
     beam_width = n_features;
 
     features = tuple(range(n_features));
-    best = tuple((-inf, (f,)) for f in features);
-    frontier = best[:];
+    ultimate = initializer(features);
+    frontier = ultimate[:];
    
     while frontier:
 
-# successors is produced by taking pairwise combinations of the current frontier
-        successors = ();
-        for f in combinations([f[1] for f in frontier], 2):
-            p = tuple(k for k,_ in groupby(sorted(f[0] + f[1])));
-            successors = successors + (p,);
-        successors = tuple(filter(lambda x: len(x) < len(features), 
-            (k for k,_ in groupby(sorted(successors)))));
+        successors = successor_function(frontier, features);
+        frontier = selector(samples, frontier, successors, beam_width);
 
-# the frontier is then replaced by the beam_width best of successors
-        frontier = tuple(
-                (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
-                    sample_labels,
-                    per_class,
-                    classifier),
-                s) for s in successors); 
-
-        frontier = sorted(frontier, key = lambda x: x[0], reverse = True)[:beam_width];
         if frontier:
-# get a maximal subset from the frontier and comapre its accuracy to the recorded max
             maximal = max(frontier, key = lambda x: x[0]);
-            if maximal[0] > best[0][0]:
-                best = tuple(filter(lambda x: x[0] == maximal[0], frontier));
-                print('Best:', *best, sep='\n\t');
+            if maximal[0] > ultimate[0][0]:
+                ultimate = tuple(filter(lambda x: x[0] == maximal[0], frontier));
+                print('Ultimate:', *ultimate, sep='\n\t');
 
-    return best;
+    return ultimate;
 
-def stochastic_genetic_beam(samples, sample_labels, per_class, classifier):
+def genetic_init(features):
+    return tuple((-inf, (f,)) for f in features);
+
+def genetic_successors(frontier, features):
+    successors = ();
+    for f in combinations([f[1] for f in frontier], 2):
+        p = tuple(k for k,_ in groupby(sorted(f[0] + f[1])));
+        successors = successors + (p,);
+    successors = tuple(filter(lambda x: len(x) < len(features), 
+        (k for k,_ in groupby(sorted(successors)))));
+    return successors;
+
+def reductive_init(features):
+    return features,;
+
+def reductive_successors(frontier, features):
+    successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier);
+    return tuple(k for k,_ in groupby(sorted(successors)));
+
+def deterministic_selector(samples, frontier, successors, beam_width):
+    frontier = tuple(
+            (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
+                sample_labels,
+                per_class,
+                classifier),
+            s) for s in successors); 
+    return sorted(frontier, key = lambda x: x[0], reverse = True)[:beam_width];
+
+def stochastic_selector(samples, frontier, successors, beam_width):
+    successors = tuple(native_sample(successors, min((beam_width, len(successors)))));
+    return tuple(
+           (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
+                sample_labels,
+                per_class,
+                classifier),
+            s) for s in successors); 
+
+def textures(train_file):
     
-    n_features = shape(samples)[1];
-    beam_width = n_features;
+    return readfile(train_file);
 
-    features = tuple(range(n_features));
-    native_seed(time.time());
+def hands(train_file):
 
-    best = tuple((-inf, (f,)) for f in features);
-    frontier = best[:];
- 
-    while frontier:
-
-# successors is produced by taking pairwise combinations of the current frontier
-        successors = ();
-        for f in combinations([f[1] for f in frontier], 2):
-            p = tuple(k for k,_ in groupby(sorted(f[0] + f[1])));
-            successors = successors + (p,);
-        successors = tuple(filter(lambda x: len(x) < len(features), 
-            (k for k,_ in groupby(sorted(successors)))));
-        successors = tuple(native_sample(successors, min((beam_width, len(successors)))));
-
-# the frontier is then replaced by the beam_width best of successors
-        frontier = tuple(
-               (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
-                    sample_labels,
-                    per_class,
-                    classifier),
-                s) for s in successors); 
-
-        if frontier:
-# get a maximal subset from the frontier and comapre its accuracy to the recorded max
-            maximal = max(frontier, key = lambda x: x[0]);
-            if maximal[0] > best[0][0]:
-                best = tuple(filter(lambda x: x[0] == maximal[0], frontier));
-                print('Best:', *best, sep='\n\t');
-
-    return best;
-
-def reductive_beam(samples, sample_labels, per_class, classifier):
-
-    n_features = shape(samples)[1];
-    features = tuple(range(n_features));
-    best = [(-inf, features)];
-    frontier = best[:];
-    beam_width = n_features;
-
-    while len(frontier[0][1]) > 1:
-
-        successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier);
-        successors = tuple(k for k,_ in groupby(sorted(successors)));
-        frontier = tuple(
-                (classify([reshape(sample[list(indices)], (len(indices),)) for sample in samples], 
-                    sample_labels, 
-                    per_class,
-                    classifier), 
-                indices) for indices in successors);
-
-        frontier = sorted(frontier, key = lambda x: x[0], reverse = True)[:beam_width];
-
-# get a maximal subset from the frontier and comapre its accuracy to the recorded max
-        maximal = max(frontier, key = lambda x: x[0]);
-        if maximal[0] > best[0][0]:
-            best = tuple(filter(lambda x: x[0] == maximal[0], frontier));
-            print('Best:', *best, sep='\n\t');
-
-    return best;
-
-def stochastic_reductive_beam(samples, sample_labels, per_class, classifier):
-
-    n_features = shape(samples)[1];
-    features = tuple(range(n_features));
-    best = (-inf, features),;
-    frontier = best[:];
-    beam_width = n_features;
-
-    native_seed(time.time());
-
-    while len(frontier[0][1]) > 1:
-
-        successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier);
-        successors = tuple(k for k,_ in groupby(sorted(successors)));
-        successors = tuple(native_sample(successors, min((beam_width, len(successors)))));
-        frontier =tuple( 
-                (classify([reshape(sample[list(indices)], (len(indices),)) for sample in samples], 
-                    sample_labels, 
-                    per_class,
-                    classifier), 
-                indices) for indices in successors);
-
-# get a maximal subset from the frontier and comapre its accuracy to the recorded max
-        maximal = max(frontier, key = lambda x: x[0]);
-        if maximal[0] > best[0][0]:
-            best = tuple(filter(lambda x: x[0] == maximal[0], frontier));
-            print('Best:', *best, sep='\n\t');
-
-    return best;
-
+    return read_hands(train_file);
+    
 algorithms = {
-        'exhaustive':exhaustive,
-        'genetic':genetic_beam,
-        'stochastic_genetic': stochastic_genetic_beam,
-        'reductive': reductive_beam,
-        'stochastic_reductive':stochastic_reductive_beam
-        };
+    'exhaust':exhaustive,
+    'beam':beam_search
+};
+
+succession_models = {
+    'genetic': (genetic_init, genetic_successors),
+    'reductive': (reductive_init, reductive_successors)
+};
+
+determinism_types = {
+    'deterministic': deterministic_selector,
+    'stochastic': stochastic_selector
+};
 
 classifiers = {
-        'bayes': bayes_classifier,
-        'nn': nn_classifier
-        };
-
-def select_for_textures(method, per_class, classifier, train_file):
-    
-    sample_labels, samples = readfile(train_file);
-    best = algorithms[method](samples, sample_labels, per_class, classifiers[classifier]);
-
-    return best;
-
-def select_for_hands(method, per_class, classifier, train_file):
-
-    sample_labels, samples = read_hands(train_file);
-    best = algorithms[method](samples, sample_labels, per_class, classifiers[classifier]);
-
-    return best;
+    'bayes': bayes_classifier,
+    'nn': nn_classifier
+};
 
 modes = {
-        'textures': select_for_textures,
-        'hands': select_for_hands
-        };
-    
+    'textures': textures,
+    'hands': hands
+};
+
 if __name__ == '__main__':
 
     mode = sys.argv[1];
-    method = sys.argv[2];
-    per_class = int(sys.argv[3]);
-    output_file = sys.argv[4];
-    classifier = sys.argv[5];
-    input_file = sys.argv[6];
+    input_file = sys.argv[2];
+    alg = sys.argv[3];
+    succ = sys.argv[4];
+    det = sys.argv[5];
+    classifier = sys.argv[6];
+    per_class = int(sys.argv[7]);
+    output_file = sys.argv[8];
 
-    best = modes[mode](method, per_class, classifier, input_file);
+    sample_labels, samples = modes[mode](input_file);
+    init, successor = successor_models[succ];
+    select = determinism_types[det];
+
+    best = algorithms[alg](samples, sample_labels, per_class, classifiers[classifier], (init, successor, select));
+
     accuracy = best[0][0];
 
     print('Accuracy is %f.' % accuracy);
