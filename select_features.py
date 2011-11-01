@@ -47,7 +47,7 @@ def beam_search(samples, sample_labels, per_class, classifier, alg_args):
     while frontier:
 
         successors = successor_function(frontier, features);
-        frontier = selector(samples, frontier, successors, beam_width);
+        frontier = selector(samples, frontier, successors, beam_width, classifier);
 
         if frontier:
             maximal = max(frontier, key = lambda x: x[0]);
@@ -76,7 +76,7 @@ def reductive_successors(frontier, features):
     successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier);
     return tuple(k for k,_ in groupby(sorted(successors)));
 
-def deterministic_selector(samples, frontier, successors, beam_width):
+def deterministic_selector(samples, frontier, successors, beam_width, classifier):
     frontier = tuple(
             (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
                 sample_labels,
@@ -85,7 +85,7 @@ def deterministic_selector(samples, frontier, successors, beam_width):
             s) for s in successors); 
     return sorted(frontier, key = lambda x: x[0], reverse = True)[:beam_width];
 
-def stochastic_selector(samples, frontier, successors, beam_width):
+def stochastic_selector(samples, frontier, successors, beam_width, classifier):
     successors = tuple(native_sample(successors, min((beam_width, len(successors)))));
     return tuple(
            (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     output_file = sys.argv[8];
 
     sample_labels, samples = modes[mode](input_file);
-    init, successor = successor_models[succ];
+    init, successor = succession_models[succ];
     select = determinism_types[det];
 
     best = algorithms[alg](samples, sample_labels, per_class, classifiers[classifier], (init, successor, select));
