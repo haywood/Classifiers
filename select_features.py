@@ -41,24 +41,27 @@ def beam_search(samples, sample_labels, per_class, classifier, alg_args):
     beam_width = n_features;
 
     features = tuple(range(n_features));
-    ultimate = initializer(features);
+    ultimate = initializer(features, samples, sample_labels, classifier, per_class);
     frontier = ultimate[:];
    
     while frontier:
 
+        maximal = max(frontier, key = lambda x: x[0]);
+        if maximal[0] > ultimate[0][0]:
+            ultimate = tuple(filter(lambda x: x[0] == maximal[0], frontier));
+            print('Ultimate:', *ultimate, sep='\n\t');
+
         successors = successor_function(frontier, features);
         frontier = selector(samples, frontier, successors, beam_width, classifier);
 
-        if frontier:
-            maximal = max(frontier, key = lambda x: x[0]);
-            if maximal[0] > ultimate[0][0]:
-                ultimate = tuple(filter(lambda x: x[0] == maximal[0], frontier));
-                print('Ultimate:', *ultimate, sep='\n\t');
-
     return ultimate;
 
-def genetic_init(features):
-    return tuple((-inf, (f,)) for f in features);
+def genetic_init(features, samples, sample_labels, classifier, per_class):
+    return tuple((classify([reshape(sample[f], (1,)) for sample in samples], 
+                            sample_labels,
+                            per_class,
+                            classifier),
+        (f,)) for f in features);
 
 def genetic_successors(frontier, features):
     successors = ();
@@ -69,11 +72,15 @@ def genetic_successors(frontier, features):
         (k for k,_ in groupby(sorted(successors)))));
     return successors;
 
-def reductive_init(features):
-    return features,;
+def reductive_init(features, samples, sample_labels, classifier, per_class):
+    return (classify([sample[list(features)] for sample in samples], 
+                    sample_labels, 
+                    per_class,
+                    classifier),
+            features),;
 
 def reductive_successors(frontier, features):
-    successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier);
+    successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier if len(x[1]) > 1);
     return tuple(k for k,_ in groupby(sorted(successors)));
 
 def deterministic_selector(samples, frontier, successors, beam_width, classifier):
