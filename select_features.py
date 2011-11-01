@@ -20,7 +20,7 @@ def exhaustive(samples, sample_labels, per_class, classifier, alg_args):
     features = tuple(range(n_features));
     ultimate = (-inf, features),;
 
-    for k in range(1, n_features):
+    for k in range(n_features-1, 0, -1):
         for comb in combinations(features, k):
             s = classify([reshape(sample[list(comb)], (k,)) for sample in samples],
                 sample_labels,
