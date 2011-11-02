@@ -1,6 +1,7 @@
 function classifier(trainin, testin, trainout, testout)
     
-    [sample_labels, samples] = read_hands(trainin);
+    [sample_labels, originals] = read_hands(trainin);
+    samples = transform_hands(originals);
     n_samples = size(samples, 1);
 
     per_class = 5;

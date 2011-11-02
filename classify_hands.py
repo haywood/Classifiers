@@ -26,17 +26,8 @@ if __name__ == '__main__':
     per_class = 5;
 
     sample_labels, samples = read_hands(train_file);
-    indices = [];
-
-    with open(feature_file) as data:
-        line = data.readline().split();
-        line.pop(0);
-        indices = [int(f) for f in line];
-    indices = [i for i in range(len(samples[0]))];
-    print(indices);
 
     original_samples = samples[:];
-    samples = [sample[indices] for sample in samples];
     n_samples, n_features = shape(samples);
     classifier = classifiers[class_type](n_features);
     per_train_class = int(0.5*per_class);
@@ -86,6 +77,6 @@ if __name__ == '__main__':
     output = open(test_file_out, 'w');
     for i in range(n_test_samples):
         line = ' '.join(str(f) for f in test_samples[i]);
-        prediction = classifier.predict(test_samples[i][indices]);
+        prediction = classifier.predict(test_samples[i]);
         print(prediction, line, file=output);
     output.close();
