@@ -24,13 +24,16 @@ if __name__ == '__main__':
     test_file_out = sys.argv[5];
     class_type = sys.argv[6];
     per_class = 5;
-    indices = None;
 
     sample_labels, samples = read_hands(train_file);
+    indices = [];
 
     with open(feature_file) as data:
-        data.readline();
-        indices = [int(i)-1 for i in data.readline().split()];
+        line = data.readline().split();
+        line.pop(0);
+        indices = [int(f) for f in line];
+    indices = [i for i in range(len(samples[0]))];
+    print(indices);
 
     original_samples = samples[:];
     samples = [sample[indices] for sample in samples];

@@ -60,22 +60,3 @@ function [labels, data] = read_hands(hand_file)
     labels = C{1};
 
     data = transform_hands(data);
-
-function image = transform_hands(preimage)
-
-    image = zeros(size(preimage, 1), size(preimage, 2)/2 - 1);
-
-    for i = 1:size(preimage, 1);
-        x = [];
-        for j = 1:2:size(preimage, 2)-3
-            x(end+1) = norm(preimage(i, j:j+1) - preimage(i, j+2:j+3));
-        end
-        image(i, :) = x;
-    end
-
-    feature_file = fopen('best_hand_features_nn.txt', 'r');
-    expected_acc = fscanf(feature_file, '%f', 1);
-    features = fscanf(feature_file, '%d')';
-    fclose(feature_file);
-
-    image = image(:, features);

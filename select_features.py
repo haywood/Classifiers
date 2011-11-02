@@ -15,17 +15,41 @@ from nn_classifier import nn_classifier
 from myio import *
 
 
+def merit(samples, labels, features):
+
+    sub_samples = [sample[list(features)] for sample in samples];
+    sample_corr = corrcoef(sub_samples, rowvar=0);
+    bottom = sqrt(sum(sample_corr));
+    top = 0;
+    for f in features:
+        top += corrcoef([sample[f] for sample in samples], labels)[0][1];
+
+    return top/bottom;
+
+def sample_combinations(samples, sample_labels, per_class, classifier, alg_args):
+
+    n_features = shape(samples)[1];
+    features = tuple(range(n_features));
+    ultimate = (-inf, features),;
+    per_k = 4;
+
+    subsets = [];
+    for k in range(1, n_features):
+        combs = [comb for comb in combinations(features, k)];
+        subsets += native_sample(combs, min([per_k, len(combs)]));
+    candidates = tuple((merit(samples, sample_labels, comb), comb) for comb in subsets);
+
+    return candidates;
+
 def exhaustive(samples, sample_labels, per_class, classifier, alg_args):
     n_features = shape(samples)[1];
     features = tuple(range(n_features));
     ultimate = (-inf, features),;
+    depth_limit = n_features;
 
-    for k in range(n_features-1, 0, -1):
+    for k in range(depth_limit):
         for comb in combinations(features, k):
-            s = classify([reshape(sample[list(comb)], (k,)) for sample in samples],
-                sample_labels,
-                per_class,
-                classifier);
+            s = merit(samples, sample_labels, comb);
             if s > ultimate[0][0]:
                 ultimate = (s, comb),;
                 print('Ultimate:', *ultimate, sep='\n\t');
@@ -41,10 +65,12 @@ def beam_search(samples, sample_labels, per_class, classifier, alg_args):
     beam_width = n_features;
 
     features = tuple(range(n_features));
-    ultimate = initializer(features, samples, sample_labels, classifier, per_class);
-    frontier = ultimate[:];
+    frontier = initializer(features, samples, sample_labels, classifier, per_class);
+    ultimate = (-inf, ()),;
+    depth_limit = inf;
+    depth = 0;
    
-    while frontier:
+    while frontier and depth < depth_limit:
 
         maximal = max(frontier, key = lambda x: x[0]);
         if maximal[0] > ultimate[0][0]:
@@ -53,53 +79,36 @@ def beam_search(samples, sample_labels, per_class, classifier, alg_args):
 
         successors = successor_function(frontier, features);
         frontier = selector(samples, frontier, successors, beam_width, classifier);
+        depth += 1;
 
     return ultimate;
 
 def genetic_init(features, samples, sample_labels, classifier, per_class):
-    return tuple((classify([reshape(sample[f], (1,)) for sample in samples], 
-                            sample_labels,
-                            per_class,
-                            classifier),
-        (f,)) for f in features);
+    return tuple((merit(samples, sample_labels, (f,)), (f,)) for f in features);
 
 def genetic_successors(frontier, features):
     successors = ();
     for f in combinations([f[1] for f in frontier], 2):
         p = tuple(k for k,_ in groupby(sorted(f[0] + f[1])));
         successors = successors + (p,);
-    successors = tuple(filter(lambda x: len(x) < len(features), 
+    successors = tuple(filter(lambda x: len(x) <= len(features), 
         (k for k,_ in groupby(sorted(successors)))));
     return successors;
 
 def reductive_init(features, samples, sample_labels, classifier, per_class):
-    return (classify([sample[list(features)] for sample in samples], 
-                    sample_labels, 
-                    per_class,
-                    classifier),
-            features),;
+    return (merit(samples, sample_labels, features), features),;
 
 def reductive_successors(frontier, features):
     successors = chain.from_iterable(combinations(x[1], len(x[1]) - 1) for x in frontier if len(x[1]) > 1);
     return tuple(k for k,_ in groupby(sorted(successors)));
 
 def deterministic_selector(samples, frontier, successors, beam_width, classifier):
-    frontier = tuple(
-            (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
-                sample_labels,
-                per_class,
-                classifier),
-            s) for s in successors); 
+    frontier = tuple((merit(samples, sample_labels, s), s) for s in successors); 
     return sorted(frontier, key = lambda x: x[0], reverse = True)[:beam_width];
 
 def stochastic_selector(samples, frontier, successors, beam_width, classifier):
     successors = tuple(native_sample(successors, min((beam_width, len(successors)))));
-    return tuple(
-           (classify([reshape(sample[list(s)], (len(s),)) for sample in samples],
-                sample_labels,
-                per_class,
-                classifier),
-            s) for s in successors); 
+    return tuple((merit(samples, sample_labels, s), s) for s in successors); 
 
 def textures(train_file):
     
@@ -110,6 +119,7 @@ def hands(train_file):
     return read_hands(train_file);
     
 algorithms = {
+    'sample':sample_combinations,
     'exhaust':exhaustive,
     'beam':beam_search
 };
@@ -149,22 +159,16 @@ if __name__ == '__main__':
     init, successor = succession_models[succ];
     select = determinism_types[det];
 
-    best = algorithms[alg](samples, sample_labels, per_class, classifiers[classifier], (init, successor, select));
+    k = 1;
+    for i in range(len(samples)):
+        if i < len(samples)-1 and sample_labels[i] != sample_labels[i+1]:
+            k += 1;
+        sample_labels[i] = k;
 
-    accuracy = best[0][0];
+    candidates = algorithms[alg](samples, sample_labels, per_class, classifiers[classifier], (init, successor, select));
 
-    print('Accuracy is %f.' % accuracy);
-    best = tuple(tuple(b+1 for b in candidate[1]) for candidate in best);
-
-    print('Here are the best feature sets:', best);
-
-    if os.path.exists(output_file):
-        with open(output_file) as feature_file:
-            prev_accuracy = float(next(feature_file));
-            if prev_accuracy >= accuracy:
-                print('Not saving because previous accuracy was at least as good.');
-                sys.exit(0);
-
+    candidates = sorted(candidates, reverse = True);
     with open(output_file, 'w') as feature_file:
-        print(accuracy, file=feature_file);
-        for b in best: print(*b, file=feature_file); 
+        for c in candidates: 
+            print(c[0], *c[1], file=feature_file); 
+            print(c[0], *c[1]);

@@ -24,13 +24,16 @@ if __name__ == '__main__':
     test_file_out = sys.argv[5];
     class_type = sys.argv[6];
     per_class = 16;
-    indices = None;
+
+    indices = [0, 1, 2, 11, 12];
+    if class_type == 'bayes':
+        indices = [0, 1, 2, 11, 12];
 
     sample_labels, samples = readfile(train_file);
 
-    with open(feature_file) as data:
-        data.readline();
-        indices = [int(i)-1 for i in data.readline().split()];
+#    with open(feature_file) as data:
+#        data.readline();
+#        indices = [int(i)-1 for i in data.readline().split()];
 
     original_samples = samples[:];
     samples = [sample[indices] for sample in samples];
