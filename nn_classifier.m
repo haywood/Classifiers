@@ -12,13 +12,13 @@ classdef nn_classifier
             self.mean_ = mean(samples);
             self.cov_ = cov(samples);
             for i = 1:size(samples, 1)
-                self.examples{end+1} = {sample_labels{i}, (samples(i, :) - self.mean_)/sqrt(diag(self.cov_))};
+                self.examples{end+1} = {sample_labels{i}, (samples(i, :) - self.mean_)./sqrt(diag(self.cov_)')};
             end
         end
 
         function prediction = predict(self, x)
             best = {inf, ''};
-            x = (x - self.mean_)/sqrt(diag(self.cov_));
+            x = (x - self.mean_)./sqrt(diag(self.cov_)');
             for i = 1:size(self.examples, 2)
                 d = norm(x - self.examples{i}{2});
                 if d < best{1}
