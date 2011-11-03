@@ -1,12 +1,15 @@
+% A nearest neighbor classifier class
 classdef nn_classifier
 
     properties
-        examples = {};
-        mean_ = [];
-        cov_ = [];
+        examples = {}; % training data
+        mean_ = []; % mean of training data
+        cov_ = []; % covariance of training data
     end
 
     methods
+        % train on a given set of samples and their labels
+        % this overrides old training data
         function self = train(self, sample_labels, samples)
             self.examples = {};
             self.mean_ = mean(samples);
@@ -16,6 +19,7 @@ classdef nn_classifier
             end
         end
 
+        % predict the class of a sample
         function prediction = predict(self, x)
             best = {inf, ''};
             x = (x - self.mean_)./sqrt(diag(self.cov_)');
