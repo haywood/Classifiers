@@ -33,9 +33,9 @@ function classifier(trainin, testin, trainout, testout)
     end
 
     % sort by distance from the mean
-    [s, i] = sort(abs(correct(:) - mean(correct)))
-    o = i(1)
-    correct
+    [s, i] = sort(abs(correct(:) - mean(correct)));
+    o = i(1);
+    correct;
 
     [train_samples, train_labels, validation_samples, test_labels] = split_samples(samples, sample_labels, per_class, per_train_class, o);
 
