@@ -20,7 +20,7 @@ def read_hands(filename):
     n_samples, n_features = shape(samples);
     for i in range(n_samples):
         p = [samples[i][j:j+2] for j in range(0, n_features-1, 2)];
-        repl = [norm(p[0] - p[18])]; # hand width
+        repl = [norm(p[0] - p[17])]; # hand width
         repl += [norm(p[j] - p[j+2]) for j in range(2, 15, 4)] + [norm(p[19] - p[21])]; # finger width
         repl += [sum([norm(p[k] - p[k+1]) for k in range(j, j+5)]) for j in range(1, 14, 4)]; # finger length
         repl += [(norm(p[18] - p[20]) + norm(p[20] - p[22]))/2]; # thumb length

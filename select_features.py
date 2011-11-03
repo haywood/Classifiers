@@ -162,8 +162,9 @@ if __name__ == '__main__':
     k = 1;
     for i in range(len(samples)):
         if i < len(samples)-1 and sample_labels[i] != sample_labels[i+1]:
+            sample_labels[i] = k;
             k += 1;
-        sample_labels[i] = k;
+        else: sample_labels[i] = k;
 
     candidates = algorithms[alg](samples, sample_labels, per_class, classifiers[classifier], (init, successor, select));
 
