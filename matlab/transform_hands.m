@@ -11,7 +11,7 @@ function image = transform_hands(preimage)
     for i = 1:N % for each sample
         x = preimage(i, :);
 
-        % extract the poitns from the sample and store in matrix p
+        % extract the points from the sample and store in matrix p
         for j = 1:2:2*n_points
             p(1+floor(j/2), :) = x(j:j+1);
         end
@@ -28,7 +28,9 @@ function image = transform_hands(preimage)
         % this loop estimates the perimeter of each finger
         for k = 2:4:14
             j = j + 1;
-            for l = k:k+4
+
+            % calculate the perimeter as the sum of a sequence of vector norms
+            for l = k:k+3
                 image(i, j) = image(i, j) + norm(p(l, :) - p(l+1, :));
              end
         end
