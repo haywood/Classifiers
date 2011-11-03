@@ -55,8 +55,6 @@ function classifier(trainin, testin, trainout, testout)
     end
     fclose(out_file);
 
-    correct/n_samples
-
     [test_labels, originals] = read_hands(testin); % read test data
     test_samples = transform_hands(originals); % transform test data to have useful features
     out_file = fopen(testout, 'w');
